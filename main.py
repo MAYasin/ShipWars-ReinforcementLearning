@@ -1,4 +1,3 @@
-
 import enum
 import random
 from tkinter import ACTIVE
