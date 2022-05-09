@@ -1,0 +1,61 @@
+{
+    "MapRadius": 25,
+    "StartingPlayerSize": 10,
+    "MinimumPlayerSize": 5,
+    "Reward": -1,
+    "GridSize": 15,
+    "Tick": 2000,
+    "FPS": 60,
+    "Path": "assets/space.png",
+    "Players":[
+        {
+            "Name": "bruh",
+            "Path":"assets/players/ufoBlue.png",
+            "Active": true,
+            "Reward": 100
+        },
+        {
+            "Name": "Wth",
+            "Path":"assets/players/ufoGreen.png",
+            "Active": true,
+            "Reward": 100
+        },
+        {
+            "Name": "omg",
+            "Path":"assets/players/ufoRed.png",
+            "Active": true,
+            "Reward": 100
+        },
+        {
+            "Name": "jeez",
+            "Path":"assets/players/ufoYellow.png",
+            "Active": true,
+            "Reward": 100
+        }
+    ],
+    "Zone": {
+        "Reward": -100,
+        "Tick": 4000,
+        "Path": "assets/zone.png"
+    },
+    "Food": {
+        "Seed": 10,
+        "Reward": 1,
+        "Probability": 6,
+        "Path": "assets/food.png"
+    },
+    "BoostPad": {
+        "SpawnPercentage": 10,
+        "Seed": 50,
+        "Reward": 2,
+        "Probability": 50,
+        "Path": "assets/boostpad.png"
+    },
+    "Meteor": {
+        "SpawnPercentage": 10,
+        "Seed": 10,
+        "Reward": -10,
+        "Probability": 150,
+        "Path": "assets/meteor.png"
+    }
+}
