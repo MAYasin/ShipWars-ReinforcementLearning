@@ -263,8 +263,10 @@ class Environment:
                         self._boostpad, (c*self._gridsize, r*self._gridsize))
         intPLoc = 1
         for p in self._game._players:
+            self._window.blit(engine.transform.scale(engine.image.load(
+                p["Path"]), (self._gridsize+5, self._gridsize+5)), (self._size+20, 32+30*intPLoc))
             self._window.blit(font.render(
-                p["Name"] + ": "+str(p["Score"]), 1, (0, 0, 0)), (self._size+20, 30+30*intPLoc))
+                p["Name"] + ": "+str(p["Score"]), 1, (0, 0, 0)), (self._size+50, 30+30*intPLoc))
             if(p["isAlive"]):
                 self._window.blit(
                     engine.transform.scale(engine.image.load(p["Path"]), (self._gridsize, self._gridsize)), (p["c"]*self._gridsize, p["r"]*self._gridsize))
@@ -285,8 +287,8 @@ class Environment:
                 object_time += time_interval
                 if(((object_time/engineconfig["Zone"]["Tick"]).is_integer())):
                     self._game.updateZone()
-                self._game.move("bruh", Action.East)
-                self._game.move("Wth", Action.West)
+                self._game.move("Millennium Falcon", Action.East)
+                self._game.move("Finalizer", Action.West)
 
             # for loop through the event queue
             for event in engine.event.get():
@@ -335,7 +337,7 @@ class Agent:
 
     def act(self) -> None:
         a = self._qtable.getBestQ(self.location)[0]
-        self._env._game.move("bruh", a)
+        self._env._game.move("Millennium Falcon", a)
 
     def train(self):
         print("Training")
