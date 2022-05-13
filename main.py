@@ -11,6 +11,9 @@ import math
 jsonfile = open('gamesettings.json')
 engineconfig = json.load(jsonfile)
 jsonfile.close()
+engine.init()
+font = engine.font.SysFont("arial", 20)
+big_font = engine.font.SysFont("arial", 30)
 
 
 def euclideanDistance(p1: Tuple[int, int], p2: Tuple[int, int]):
@@ -28,6 +31,30 @@ class Action(enum.Enum):
     NorthWest = 6
     SouthEast = 7
     SouthWest = 8
+
+
+class QTable():
+    def __init__(self, tplDimensions: Tuple[int, int], lstActions: List[Action]):
+        self._rows, self._cols = tplDimensions
+        self._map = [[] for _ in range(self._rows)]
+
+        for r in range(self._rows):
+            for _ in range(self._cols):
+                dictQ = {}
+                for a in lstActions:
+                    dictQ[a] = 0.0
+                self._map[r].append(dictQ)
+
+    def getBestQ(self, tplCoord: Tuple[int, int]) -> Tuple[Action, float]:
+        qs = self[tplCoord]
+        qbest = list(qs.values())[0]
+        abest = list(qs.keys())[0]
+
+        for a, q in qs.items():
+            if q > qbest:
+                qbest = q
+                abest = a
+        return (abest, qbest)
 
 
 class World:
@@ -50,7 +77,7 @@ class World:
                         self._map[r].append(engineconfig["Reward"])
                         blnNext = not blnNext
 
-        blnNext = True
+        """ blnNext = True
         random.seed(engineconfig["BoostPad"]["Seed"])
         for r in range(engineconfig["MapRadius"]*2):
             for c in range(engineconfig["MapRadius"]*2):
@@ -58,7 +85,7 @@ class World:
                     n = random.randint(
                         0, engineconfig["BoostPad"]["Probability"])
                     if(blnNext and n == engineconfig["BoostPad"]["Probability"]):
-                        self._map[r][c] = engineconfig["BoostPad"]["Reward"]
+                        self._map[r][c] = engineconfig["BoostPad"]["Reward"] """
 
         blnNext = True
         random.seed(engineconfig["Meteor"]["Seed"])
@@ -74,7 +101,8 @@ class World:
             if(p["Active"]):
                 self._players.append({"Name": p["Name"],
                                       "Path": p["Path"],
-                                      "Reward": p["Reward"], "r": 0, "c": 0})
+                                      "isAlive": True,
+                                      "Score": p["Size"], "r": 0, "c": 0})
 
         dist = engineconfig["MapRadius"]/2
         r = dist
@@ -83,13 +111,11 @@ class World:
         for p in self._players:
             if(blnSide):
                 c += dist
-                self._map[math.floor(r)][math.floor(c)] = p["Name"]
                 p["r"] = math.floor(r)
                 p["c"] = math.floor(c)
                 c += dist*2
                 blnSide = not blnSide
             else:
-                self._map[math.floor(r)][math.floor(c)] = p["Name"]
                 p["r"] = math.floor(r)
                 p["c"] = math.floor(c)
                 r += dist*2
@@ -102,65 +128,88 @@ class World:
             for c in range(engineconfig["MapRadius"]*2):
                 if(euclideanDistance((engineconfig["MapRadius"], engineconfig["MapRadius"]), (r, c)) >= self._size):
                     self._map[r][c] = engineconfig["Zone"]["Reward"]
+                    for p in self._players:
+                        if(p["r"] == r and p["c"] == c):
+                            p["isAlive"] = False
 
     def getMoves(self, pName: str) -> List[Action]:
-        actions = List[Action]
+        actions = list()
         for p in self._players:
             if(p["Name"] == pName):
-                if(p["r"]-1 >= 0):
-                    actions.append(Action.North)
-                if(p["r"]+1 < engineconfig["MapRadius"]*2):
-                    actions.append(Action.South)
-                if(p["c"]+1 < engineconfig["MapRadius"]*2):
-                    actions.append(Action.East)
-                if(p["c"]-1 >= 0):
-                    actions.append(Action.West)
-                if(p["r"]-1 >= 0 and p["c"]+1 < engineconfig["MapRadius"]*2):
-                    actions.append(Action.NorthEast)
-                if(p["r"]-1 >= 0 and p["c"]-1 >= 0):
-                    actions.append(Action.NorthWest)
-                if(p["r"]+1 < engineconfig["MapRadius"]*2 and p["c"]-1 >= 0):
-                    actions.append(Action.SouthWest)
-                if(p["r"]+1 < engineconfig["MapRadius"]*2 and p["c"]+1 < engineconfig["MapRadius"]*2):
-                    actions.append(Action.SouthEast)
+                if(p["isAlive"]):
+                    if(p["r"]-1 >= 0):
+                        actions.append(Action.North)
+                    if(p["r"]+1 < engineconfig["MapRadius"]*2):
+                        actions.append(Action.South)
+                    if(p["c"]+1 < engineconfig["MapRadius"]*2):
+                        actions.append(Action.East)
+                    if(p["c"]-1 >= 0):
+                        actions.append(Action.West)
+                    if(p["r"]-1 >= 0 and p["c"]+1 < engineconfig["MapRadius"]*2):
+                        actions.append(Action.NorthEast)
+                    if(p["r"]-1 >= 0 and p["c"]-1 >= 0):
+                        actions.append(Action.NorthWest)
+                    if(p["r"]+1 < engineconfig["MapRadius"]*2 and p["c"]-1 >= 0):
+                        actions.append(Action.SouthWest)
+                    if(p["r"]+1 < engineconfig["MapRadius"]*2 and p["c"]+1 < engineconfig["MapRadius"]*2):
+                        actions.append(Action.SouthEast)
         return actions
 
     def move(self, pName: str, action: Action):
-        r = 0
-        c = 0
-        for p in self._players:
-            if(p["Name"] == pName):
-                if(action == Action.North):
-                    r = p["r"]-1
-                    c = p["c"]
-                if(action == Action.South):
-                    r = p["r"]+1
-                    c = p["c"]
-                if(action == Action.East):
-                    r = p["r"]
-                    c = p["c"]+1
-                if(action == Action.West):
-                    r = p["r"]
-                    c = p["c"]-1
-                if(action == Action.NorthEast):
-                    r = p["r"]-1
-                    c = p["c"]+1
-                if(action == Action.NorthWest):
-                    r = p["r"]-1
-                    c = p["c"]-1
-                if(action == Action.SouthWest):
-                    r = p["r"]+1
-                    c = p["c"]-1
-                if(action == Action.SouthEast):
-                    r = p["r"]+1
-                    c = p["c"]+1
+        if action in self.getMoves(pName):
+            r = 0
+            c = 0
+            for p in self._players:
+                if(p["Name"] == pName):
+                    if(p["isAlive"]):
+                        if(action == Action.North):
+                            r = p["r"]-1
+                            c = p["c"]
+                        if(action == Action.South):
+                            r = p["r"]+1
+                            c = p["c"]
+                        if(action == Action.East):
+                            r = p["r"]
+                            c = p["c"]+1
+                        if(action == Action.West):
+                            r = p["r"]
+                            c = p["c"]-1
+                        if(action == Action.NorthEast):
+                            r = p["r"]-1
+                            c = p["c"]+1
+                        if(action == Action.NorthWest):
+                            r = p["r"]-1
+                            c = p["c"]-1
+                        if(action == Action.SouthWest):
+                            r = p["r"]+1
+                            c = p["c"]-1
+                        if(action == Action.SouthEast):
+                            r = p["r"]+1
+                            c = p["c"]+1
 
-                if(r >= 0 and r < engineconfig["MapRadius"]*2 and c >= 0 and c < engineconfig["MapRadius"]*2):
-                    self._map[p["r"]][p["c"]] = engineconfig["Reward"]
-                    print(r)
-                    p["r"] = r
-                    p["c"] = c
-                    self._map[r][c] = p["Name"]
+                        if(r >= 0 and r < engineconfig["MapRadius"]*2 and c >= 0 and c < engineconfig["MapRadius"]*2):
+                            p["r"] = r
+                            p["c"] = c
+                            for otherP in self._players:
+                                if(otherP["Name"] != pName):
+                                    if(otherP["r"] == p["r"] and otherP["c"] == p["c"]):
+                                        if(otherP["Score"] > p["Score"]):
+                                            p["isALive"] = False
+                                            p["Score"] -= engineconfig["PlayerReward"]
+                                        elif (otherP["Score"] < p["Score"]):
+                                            otherP["isAlive"] = False
+                                            p["Score"] += engineconfig["PlayerReward"]
+                            if self._map[r][c] == engineconfig["Food"]["Reward"]:
+                                p["Score"] += engineconfig["Food"]["Reward"]
+                            if self._map[r][c] == engineconfig["Meteor"]["Reward"]:
+                                p["Score"] += engineconfig["Meteor"]["Reward"]
+                            if self._map[r][c] == engineconfig["BoostPad"]["Reward"]:
+                                p["Score"] += engineconfig["BoostPad"]["Reward"]
+                            if self._map[r][c] == engineconfig["Zone"]["Reward"]:
+                                p["Score"] += engineconfig["Zone"]["Reward"]
+                            else:
+                                p["Score"] += engineconfig["Reward"]
+                                self._map[r][c] = engineconfig["Reward"]
 
     def gameOver(self) -> bool:
         if self._size < 0:
@@ -174,9 +223,11 @@ class Environment:
         self._gridsize = engineconfig["GridSize"]
         self._game = World()
         self._size = engineconfig["MapRadius"]*2*self._gridsize
-        self._window = engine.display.set_mode((self._size, self._size))
+        self._window = engine.display.set_mode(
+            (self._size + engineconfig["LeaderboardSize"], self._size))
         engine.display.set_caption('SpaceWars')
-        self._bgimage = engine.image.load(engineconfig["Path"])
+        self._bgimage = engine.transform.scale(
+            engine.image.load(engineconfig["Path"]), (self._size, self._size))
         self._window.blit(self._bgimage, (0, 0))
         self._zone = engine.transform.scale(engine.image.load(
             engineconfig["Zone"]["Path"]), (self._gridsize, self._gridsize))
@@ -186,9 +237,16 @@ class Environment:
             engineconfig["Meteor"]["Path"]), (self._gridsize, self._gridsize))
         self._boostpad = engine.transform.scale(engine.image.load(
             engineconfig["BoostPad"]["Path"]), (self._gridsize, self._gridsize))
+        self._leaderboard = engine.Surface(
+            (engineconfig["LeaderboardSize"], self._size), engine.SRCALPHA)
+        self._leaderboard.fill((255, 255, 255))
 
     def draw(self):
         self._window.blit(self._bgimage, (0, 0))
+        self._window.blit(self._leaderboard, (self._size, 0))
+        self._window.blit(big_font.render("Leaderboard", 0, (0, 0, 0)),
+                          (self._size+20, 20))
+
         for r in range(engineconfig["MapRadius"]*2):
             for c in range(engineconfig["MapRadius"]*2):
                 if self._game._map[r][c] == engineconfig["Zone"]["Reward"]:
@@ -203,22 +261,14 @@ class Environment:
                 if self._game._map[r][c] == engineconfig["BoostPad"]["Reward"]:
                     self._window.blit(
                         self._boostpad, (c*self._gridsize, r*self._gridsize))
-                if self._game._map[r][c] == engineconfig["Players"][0]["Name"]:
-                    self._window.blit(
-                        engine.transform.scale(engine.image.load(
-                            engineconfig["Players"][0]["Path"]), (self._gridsize, self._gridsize)), (c*self._gridsize, r*self._gridsize))
-                if self._game._map[r][c] == engineconfig["Players"][1]["Name"]:
-                    self._window.blit(
-                        engine.transform.scale(engine.image.load(
-                            engineconfig["Players"][1]["Path"]), (self._gridsize, self._gridsize)), (c*self._gridsize, r*self._gridsize))
-                if self._game._map[r][c] == engineconfig["Players"][2]["Name"]:
-                    self._window.blit(
-                        engine.transform.scale(engine.image.load(
-                            engineconfig["Players"][2]["Path"]), (self._gridsize, self._gridsize)), (c*self._gridsize, r*self._gridsize))
-                if self._game._map[r][c] == engineconfig["Players"][3]["Name"]:
-                    self._window.blit(
-                        engine.transform.scale(engine.image.load(
-                            engineconfig["Players"][3]["Path"]), (self._gridsize, self._gridsize)), (c*self._gridsize, r*self._gridsize))
+        intPLoc = 1
+        for p in self._game._players:
+            self._window.blit(font.render(
+                p["Name"] + ": "+str(p["Score"]), 1, (0, 0, 0)), (self._size+20, 30+30*intPLoc))
+            if(p["isAlive"]):
+                self._window.blit(
+                    engine.transform.scale(engine.image.load(p["Path"]), (self._gridsize, self._gridsize)), (p["c"]*self._gridsize, p["r"]*self._gridsize))
+            intPLoc += 1
 
         # Update the display using flip
         engine.display.flip()
@@ -235,6 +285,8 @@ class Environment:
                 object_time += time_interval
                 if(((object_time/engineconfig["Zone"]["Tick"]).is_integer())):
                     self._game.updateZone()
+                self._game.move("bruh", Action.East)
+                self._game.move("Wth", Action.West)
 
             # for loop through the event queue
             for event in engine.event.get():
@@ -245,6 +297,78 @@ class Environment:
             """ if self._game.gameOver():
                 self._continue = False
                 engine.quit() """
+
+
+class Agent:
+    def __init__(self, epsilon: float, gamma: float, alpha: float, env: Environment, pName: str):
+        self._epsilon = epsilon
+        self._gamma = gamma
+        self._alpha = alpha
+        self._env = env
+        for p in self._env._game._players:
+            if p["Name"] == pName:
+                self._player = self._env._game._players
+        self._location = (self._player["r"], self._player["c"])
+        self._actions = [Action.North, Action.South, Action.East, Action.West,
+                         Action.NorthEast, Action.NorthWest, Action.SouthEast, Action.SouthWest]
+        self._qtable = QTable(
+            (self._env._rewards.rows, self._env._rewards.cols), self._actions)
+
+    @property
+    def location(self):
+        return self._location
+
+    @location.setter
+    def location(self, tplCoord: Tuple[int, int]):
+        self._location = tplCoord
+
+    def sense(self):
+        return self._qtable[self.location]
+
+    def choose(self) -> Action:
+        qs = self.sense()
+        if random.random() < self._epsilon:
+            abest, _ = self._qtable.getBestQ(self.location)
+            return abest
+        else:
+            return random.choice(list(qs.keys()))
+
+    def act(self) -> None:
+        a = self._qtable.getBestQ(self.location)[0]
+        self._env._game.move("bruh", a)
+
+    def train(self):
+        print("Training")
+        locOriginal = self.location
+        for e in range(self._env.episodes):
+            print(f"Training episode: {e}")
+            self.location = random.choice(self._env.openLocations())
+            while not self._env.isTerminal(self.location):
+                locStart = self.location
+                print(f"In {self.location} - Q: {self._qtable[locStart]}")
+                a = self.choose()
+                print(f"Selection action: {a}")
+                qStart = self._qtable[locStart][a]
+                print(f"Quality of action: {qStart}")
+                self.act(a)
+                reward = self._env._rewards[self.location]
+                print(f"Immediate reward for action: {reward}")
+                print(f"Now in {self.location} - Q: {self._qtable[locStart]}")
+
+                _, qBest = self._qtable.getBestQ(self.location)
+                print(f"Best quality is {qBest}")
+                td = reward + (self._gamma * qBest) - qStart
+                print(f"Temporal Difference: {td}")
+
+                qNew = qStart + td * self._alpha
+                self._qtable[locStart][a] = qNew
+                print(f"Updating qvalue @{locStart} for {a} to {qNew}\n\n")
+
+        self.location = locOriginal
+        print("Training Complete")
+        for o in self._env.openLocations():
+            print(f"@{o} - Q: {self._qtable[o]}")
+
 
 if __name__ == "__main__":
     env = Environment()

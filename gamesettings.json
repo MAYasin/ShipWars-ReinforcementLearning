@@ -2,35 +2,37 @@
     "MapRadius": 25,
     "StartingPlayerSize": 10,
     "MinimumPlayerSize": 5,
-    "Reward": -1,
+    "Reward": 0,
     "GridSize": 15,
-    "Tick": 2000,
+    "Tick": 1000,
     "FPS": 60,
+    "LeaderboardSize": 280,
+    "PlayerReward": 100,
     "Path": "assets/space.png",
-    "Players":[
+    "Players": [
         {
             "Name": "bruh",
-            "Path":"assets/players/ufoBlue.png",
+            "Path": "assets/players/ufoBlue.png",
             "Active": true,
-            "Reward": 100
+            "Size": 6
         },
         {
             "Name": "Wth",
-            "Path":"assets/players/ufoGreen.png",
+            "Path": "assets/players/ufoGreen.png",
             "Active": true,
-            "Reward": 100
+            "Size": 5
         },
         {
             "Name": "omg",
-            "Path":"assets/players/ufoRed.png",
-            "Active": true,
-            "Reward": 100
+            "Path": "assets/players/ufoRed.png",
+            "Active": false,
+            "Size": 5
         },
         {
             "Name": "jeez",
-            "Path":"assets/players/ufoYellow.png",
-            "Active": true,
-            "Reward": 100
+            "Path": "assets/players/ufoYellow.png",
+            "Active": false,
+            "Size": 5
         }
     ],
     "Zone": {
