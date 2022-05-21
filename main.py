@@ -225,7 +225,8 @@ class World:
 
 
 class Environment:
-    def __init__(self, intEpisodes: int) -> None:
+    def __init__(self, episodes: int) -> None:
+        self._episodes = episodes
         self._running = True
         self._gridsize = engineconfig["GridSize"]
         self._game = World()
@@ -248,6 +249,7 @@ class Environment:
             (engineconfig["LeaderboardSize"], self._size), engine.SRCALPHA)
         self._leaderboard.fill((255, 255, 255))
         self._agentR = ReferenceAgent(self, "Finalizer")
+        self._agentQ = Agent(0.9, 0.9, 0.9, self, "Millennium Falcon")
 
     def draw(self):
         self._window.blit(self._bgimage, (0, 0))
@@ -295,7 +297,7 @@ class Environment:
                 object_time += time_interval
                 if(((object_time/engineconfig["Zone"]["Tick"]).is_integer())):
                     self._game.updateZone()
-                self._game.move("Millennium Falcon", Action.East)
+                # self._agentQ.act()
                 self._agentR.act()
                 self._game.update()
 
@@ -328,7 +330,8 @@ class ReferenceAgent:
         if(self._env._game._map[self._pName["r"]][self._pName["c"]-2] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._pName["r"]][self._pName["c"]-2] == engineconfig["Meteor"]["Reward"]):
             a.remove(Action.West)
         print(f"{self._pName}: actions {a}")
-        self._env._game.move("Finalizer", random.choice(a))
+        if(len(a) > 0):
+            self._env._game.move("Finalizer", random.choice(a))
 
 
 class Agent:
@@ -339,47 +342,60 @@ class Agent:
         self._env = env
         for p in self._env._game._players:
             if p["Name"] == pName:
-                self._player = self._env._game._players
-        self._location = (self._player["r"], self._player["c"])
+                self._player = p
         self._actions = [Action.North, Action.South, Action.East, Action.West]
-        self._qtable = QTable(
-            (self._env._rewards.rows, self._env._rewards.cols), self._actions)
+        self._qtable = QTable(self._actions)
 
     def act(self) -> None:
         a = self._qtable.getBestQ(self.location)[0]
-        self._env._game.move("Millennium Falcon", a)
+        self._env._game.move(self._player["Name"], a)
 
     def train(self):
-        print("Training")
-        locOriginal = self.location
-        for e in range(self._env.episodes):
-            print(f"Training episode: {e}")
-            self.location = random.choice(self._env.openLocations())
-            while not self._env.isTerminal(self.location):
-                locStart = self.location
-                print(f"In {self.location} - Q: {self._qtable[locStart]}")
-                a = self.choose()
-                print(f"Selection action: {a}")
-                qStart = self._qtable[locStart][a]
-                print(f"Quality of action: {qStart}")
-                self.act(a)
-                reward = self._env._rewards[self.location]
-                print(f"Immediate reward for action: {reward}")
-                print(f"Now in {self.location} - Q: {self._qtable[locStart]}")
+        p = 1
 
-                _, qBest = self._qtable.getBestQ(self.location)
-                print(f"Best quality is {qBest}")
-                td = reward + (self._gamma * qBest) - qStart
-                print(f"Temporal Difference: {td}")
+    def getState(self) -> Tuple[int, Action]:
+        rad = [0, 0, 0, 0, 0, 0, 0, 0]
+        if(self._env._game._map[self._pName["r"]-1][self._pName["c"]] == engineconfig["Food"]["Reward"]):
+            rad[0] = 1
+        if(self._env._game._map[self._pName["r"]+1][self._pName["c"]] == engineconfig["Food"]["Reward"]):
+            rad[1] = 1
+        if(self._env._game._map[self._pName["r"]][self._pName["c"]+1] == engineconfig["Food"]["Reward"]):
+            rad[2] = 1
+        if(self._env._game._map[self._pName["r"]][self._pName["c"]-1] == engineconfig["Food"]["Reward"]):
+            rad[3] = 1
+        if(self._env._game._map[self._pName["r"]-1][self._pName["c"]+1] == engineconfig["Food"]["Reward"]):
+            rad[4] = 1
+        if(self._env._game._map[self._pName["r"]-1][self._pName["c"]-1] == engineconfig["Food"]["Reward"]):
+            rad[5] = 1
+        if(self._env._game._map[self._pName["r"]+1][self._pName["c"]+1] == engineconfig["Food"]["Reward"]):
+            rad[6] = 1
+        if(self._env._game._map[self._pName["r"]+1][self._pName["c"]-1] == engineconfig["Food"]["Reward"]):
+            rad[7] = 1
 
-                qNew = qStart + td * self._alpha
-                self._qtable[locStart][a] = qNew
-                print(f"Updating qvalue @{locStart} for {a} to {qNew}\n\n")
+        oppR = self._player["r"] - self._env._agentR._pName["r"]
+        oppC = self._player["c"] - self._env._agentR._pName["c"]
 
-        self.location = locOriginal
-        print("Training Complete")
-        for o in self._env.openLocations():
-            print(f"@{o} - Q: {self._qtable[o]}")
+        if (oppR < 0 and oppC < 0):
+            rad[0] = 2
+        elif (oppR == 0 and oppC < 0):
+            rad[1] = 2
+        elif (oppR > 0 and oppC < 0):
+            rad[2] = 2
+        elif (oppR > 0 and oppC == 0):
+            rad[3] = 2
+        elif (oppR > 0 and oppC > 0):
+            rad[4] = 2
+        elif (oppR == 0 and oppC > 0):
+            rad[5] = 2
+        elif (oppR < 0 and oppC > 0):
+            rad[6] = 2
+        elif (oppR < 0 and oppC == 0):
+            rad[7] = 2
+
+        row = rad[0] + (3 * rad[1]) + (9 * rad[2]) + (27 * rad[3]) + \
+            (81 * rad[4]) + (243 * rad[5]) + (729 * rad[6]) + (2187 * rad[7])
+
+        return (row)
 
 
 if __name__ == "__main__":
