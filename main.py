@@ -1,5 +1,6 @@
 import enum
 import random
+import this
 from tkinter import ACTIVE
 from tokenize import String
 from typing import List, Tuple
@@ -35,10 +36,10 @@ class Action(enum.Enum):
 
 class QTable():
     def __init__(self, lstActions: List[Action]):
-        self._map = [[] for _ in range(16)]
+        self._map = [[] for _ in range(6561)]
 
-        for r in range(16):
-            for _ in range(6561):
+        for r in range(6561):
+            for _ in range(16):
                 dictQ = {}
                 for a in lstActions:
                     dictQ[a] = 0.0
@@ -68,7 +69,6 @@ class World:
     def __init__(self) -> None:
         self._size = engineconfig["MapRadius"]
         self._map = [[] for _ in range(engineconfig["MapRadius"]*2)]
-        self._players = []
         blnNext = True
         random.seed(engineconfig["Food"]["Seed"])
         for r in range(engineconfig["MapRadius"]*2):
@@ -104,30 +104,85 @@ class World:
                     if(blnNext and n == engineconfig["Meteor"]["Probability"]):
                         self._map[r][c] = engineconfig["Meteor"]["Reward"]
 
-        for p in engineconfig["Players"]:
-            if(p["Active"]):
-                self._players.append({"Name": p["Name"],
-                                      "Path": p["Path"],
-                                      "isAlive": True,
-                                      "Score": p["Size"], "r": 0, "c": 0})
+        p = engineconfig["Players"][0]
+        self._playerA = {"Name": p["Name"],
+                         "Path": p["Path"],
+                         "isAlive": True,
+                         "Score": p["Size"], "r": 0, "c": 0}
+
+        p = engineconfig["Players"][1]
+        self._playerB = {"Name": p["Name"],
+                         "Path": p["Path"],
+                         "isAlive": True,
+                         "Score": p["Size"], "r": 0, "c": 0}
 
         dist = engineconfig["MapRadius"]/2
-        r = dist
-        c = 0
-        blnSide = True
-        for p in self._players:
-            if(blnSide):
-                c += dist
-                p["r"] = math.floor(r)
-                p["c"] = math.floor(c)
-                c += dist*2
-                blnSide = not blnSide
-            else:
-                p["r"] = math.floor(r)
-                p["c"] = math.floor(c)
-                r += dist*2
-                c -= dist*3
-                blnSide = not blnSide
+
+        self._playerA["r"] = math.floor(dist)
+        self._playerA["c"] = math.floor(dist)
+
+        self._playerB["r"] = math.floor(dist*3)
+        self._playerB["c"] = math.floor(dist*3)
+
+    def reset(self):
+        for r in range(engineconfig["MapRadius"]*2):
+            for c in range(engineconfig["MapRadius"]*2):
+                self._map[r][c] = engineconfig["Reward"]
+        self._size = engineconfig["MapRadius"]
+        blnNext = True
+        random.seed(engineconfig["Food"]["Seed"])
+        for r in range(engineconfig["MapRadius"]*2):
+            for c in range(engineconfig["MapRadius"]*2):
+                if(euclideanDistance((engineconfig["MapRadius"], engineconfig["MapRadius"]), (r, c)) >= engineconfig["MapRadius"]):
+                    self._map[r][c] = engineconfig["Zone"]["Reward"]
+                else:
+                    n = random.randint(0, engineconfig["Food"]["Probability"])
+                    if(blnNext and n == engineconfig["Food"]["Probability"]):
+                        self._map[r][c] = engineconfig["Food"]["Reward"]
+                        blnNext = not blnNext
+                    else:
+                        self._map[r][c] = engineconfig["Reward"]
+                        blnNext = not blnNext
+
+        """ blnNext = True
+        random.seed(engineconfig["BoostPad"]["Seed"])
+        for r in range(engineconfig["MapRadius"]*2):
+            for c in range(engineconfig["MapRadius"]*2):
+                if(not euclideanDistance((engineconfig["MapRadius"], engineconfig["MapRadius"]), (r, c)) >= engineconfig["MapRadius"]):
+                    n = random.randint(
+                        0, engineconfig["BoostPad"]["Probability"])
+                    if(blnNext and n == engineconfig["BoostPad"]["Probability"]):
+                        self._map[r][c] = engineconfig["BoostPad"]["Reward"] """
+
+        blnNext = True
+        random.seed(engineconfig["Meteor"]["Seed"])
+        for r in range(engineconfig["MapRadius"]*2):
+            for c in range(engineconfig["MapRadius"]*2):
+                if(not euclideanDistance((engineconfig["MapRadius"], engineconfig["MapRadius"]), (r, c)) >= engineconfig["MapRadius"]):
+                    n = random.randint(
+                        0, engineconfig["Meteor"]["Probability"])
+                    if(blnNext and n == engineconfig["Meteor"]["Probability"]):
+                        self._map[r][c] = engineconfig["Meteor"]["Reward"]
+
+        p = engineconfig["Players"][0]
+        self._playerA = {"Name": p["Name"],
+                         "Path": p["Path"],
+                         "isAlive": True,
+                         "Score": p["Size"], "r": 0, "c": 0}
+
+        p = engineconfig["Players"][1]
+        self._playerB = {"Name": p["Name"],
+                         "Path": p["Path"],
+                         "isAlive": True,
+                         "Score": p["Size"], "r": 0, "c": 0}
+
+        dist = engineconfig["MapRadius"]/2
+
+        self._playerA["r"] = math.floor(dist)
+        self._playerA["c"] = math.floor(dist)
+
+        self._playerB["r"] = math.floor(dist*3)
+        self._playerB["c"] = math.floor(dist*3)
 
     def updateZone(self):
         self._size -= 1
@@ -139,97 +194,110 @@ class World:
     def update(self):
         for r in range(engineconfig["MapRadius"]*2):
             for c in range(engineconfig["MapRadius"]*2):
-                for pl in self._players:
-                    if(self._map[r][c] == engineconfig["Zone"]["Reward"]):
-                        if(pl["r"] == r and pl["c"] == c):
-                            pl["isAlive"] = False
+                if(self._map[r][c] == engineconfig["Zone"]["Reward"]):
+                    if(self._playerA["r"] == r and self._playerA["c"] == c):
+                        self._playerA["isAlive"] = False
 
-        for p in self._players:
-            for otherP in self._players:
-                if(otherP["Name"] != p["Name"]):
-                    if(otherP["r"] == p["r"] and otherP["c"] == p["c"]):
-                        if(otherP["Score"] > p["Score"]):
-                            p["isALive"] = False
-                            p["Score"] -= engineconfig["PlayerReward"]
-                        elif (otherP["Score"] < p["Score"]):
-                            otherP["isAlive"] = False
-                            p["Score"] += engineconfig["PlayerReward"]
+                    if(self._playerB["r"] == r and self._playerB["c"] == c):
+                        self._playerB["isAlive"] = False
 
-            if self._map[p["r"]][p["c"]] == engineconfig["Food"]["Reward"]:
-                p["Score"] += engineconfig["Food"]["Reward"]
-            if self._map[p["r"]][p["c"]] == engineconfig["Meteor"]["Reward"]:
-                p["Score"] += engineconfig["Meteor"]["Reward"]
-            if self._map[p["r"]][p["c"]] == engineconfig["BoostPad"]["Reward"]:
-                p["Score"] += engineconfig["BoostPad"]["Reward"]
-            if self._map[p["r"]][p["c"]] == engineconfig["Zone"]["Reward"]:
-                p["Score"] += engineconfig["Zone"]["Reward"]
-            else:
-                p["Score"] += engineconfig["Reward"]
-                self._map[p["r"]][p["c"]] = engineconfig["Reward"]
+        if(self._playerA["r"] == self._playerB["r"] and self._playerA["c"] == self._playerB["c"]):
+            if(self._playerA["Score"] > self._playerB["Score"]):
+                self._playerB["isALive"] = False
+                self._playerB["Score"] -= engineconfig["PlayerReward"]
+            elif (self._playerA["Score"] < self._playerB["Score"]):
+                self._playerA["isAlive"] = False
+                self._playerB["Score"] += engineconfig["PlayerReward"]
 
-    def getMoves(self, pName: str) -> List[Action]:
+        if self._map[self._playerA["r"]][self._playerA["c"]] == engineconfig["Food"]["Reward"]:
+            self._playerA["Score"] += engineconfig["Food"]["Reward"]
+        if self._map[self._playerA["r"]][self._playerA["c"]] == engineconfig["Meteor"]["Reward"]:
+            self._playerA["Score"] += engineconfig["Meteor"]["Reward"]
+        if self._map[self._playerA["r"]][self._playerA["c"]] == engineconfig["BoostPad"]["Reward"]:
+            self._playerA["Score"] += engineconfig["BoostPad"]["Reward"]
+        if self._map[self._playerA["r"]][self._playerA["c"]] == engineconfig["Zone"]["Reward"]:
+            self._playerA["Score"] += engineconfig["Zone"]["Reward"]
+        else:
+            self._playerA["Score"] += engineconfig["Reward"]
+            self._map[self._playerA["r"]][self._playerA["c"]
+                                          ] = engineconfig["Reward"]
+
+        if self._map[self._playerB["r"]][self._playerB["c"]] == engineconfig["Food"]["Reward"]:
+            self._playerB["Score"] += engineconfig["Food"]["Reward"]
+        if self._map[self._playerB["r"]][self._playerB["c"]] == engineconfig["Meteor"]["Reward"]:
+            self._playerB["Score"] += engineconfig["Meteor"]["Reward"]
+        if self._map[self._playerB["r"]][self._playerB["c"]] == engineconfig["BoostPad"]["Reward"]:
+            self._playerB["Score"] += engineconfig["BoostPad"]["Reward"]
+        if self._map[self._playerB["r"]][self._playerB["c"]] == engineconfig["Zone"]["Reward"]:
+            self._playerB["Score"] += engineconfig["Zone"]["Reward"]
+        else:
+            self._playerB["Score"] += engineconfig["Reward"]
+            self._map[self._playerB["r"]][self._playerB["c"]
+                                          ] = engineconfig["Reward"]
+
+    def getMoves(self, p) -> List[Action]:
         actions = list()
-        for p in self._players:
-            if(p["Name"] == pName):
-                if(p["isAlive"]):
-                    if(p["r"]-1 >= 0):
-                        actions.append(Action.North)
-                    if(p["r"]+1 < engineconfig["MapRadius"]*2):
-                        actions.append(Action.South)
-                    if(p["c"]+1 < engineconfig["MapRadius"]*2):
-                        actions.append(Action.East)
-                    if(p["c"]-1 >= 0):
-                        actions.append(Action.West)
-                    """ if(p["r"]-1 >= 0 and p["c"]+1 < engineconfig["MapRadius"]*2):
-                        actions.append(Action.NorthEast)
-                    if(p["r"]-1 >= 0 and p["c"]-1 >= 0):
-                        actions.append(Action.NorthWest)
-                    if(p["r"]+1 < engineconfig["MapRadius"]*2 and p["c"]-1 >= 0):
-                        actions.append(Action.SouthWest)
-                    if(p["r"]+1 < engineconfig["MapRadius"]*2 and p["c"]+1 < engineconfig["MapRadius"]*2):
-                        actions.append(Action.SouthEast) """
+
+        if(p["isAlive"]):
+            if(p["r"]-1 >= 0):
+                actions.append(Action.North)
+            if(p["r"]+1 < engineconfig["MapRadius"]*2):
+                actions.append(Action.South)
+            if(p["c"]+1 < engineconfig["MapRadius"]*2):
+                actions.append(Action.East)
+            if(p["c"]-1 >= 0):
+                actions.append(Action.West)
+            """ if(p["r"]-1 >= 0 and p["c"]+1 < engineconfig["MapRadius"]*2):
+                actions.append(Action.NorthEast)
+            if(p["r"]-1 >= 0 and p["c"]-1 >= 0):
+                actions.append(Action.NorthWest)
+            if(p["r"]+1 < engineconfig["MapRadius"]*2 and p["c"]-1 >= 0):
+                actions.append(Action.SouthWest)
+            if(p["r"]+1 < engineconfig["MapRadius"]*2 and p["c"]+1 < engineconfig["MapRadius"]*2):
+                actions.append(Action.SouthEast) """
+
         return actions
 
-    def move(self, pName: str, action: Action):
-        if action in self.getMoves(pName):
+    def move(self, p, action: Action):
+        if action in self.getMoves(p):
             r = 0
             c = 0
-            for p in self._players:
-                if(p["Name"] == pName):
-                    if(p["isAlive"]):
-                        if(action == Action.North):
-                            r = p["r"]-1
-                            c = p["c"]
-                        if(action == Action.South):
-                            r = p["r"]+1
-                            c = p["c"]
-                        if(action == Action.East):
-                            r = p["r"]
-                            c = p["c"]+1
-                        if(action == Action.West):
-                            r = p["r"]
-                            c = p["c"]-1
-                        """ if(action == Action.NorthEast):
-                            r = p["r"]-1
-                            c = p["c"]+1
-                        if(action == Action.NorthWest):
-                            r = p["r"]-1
-                            c = p["c"]-1
-                        if(action == Action.SouthWest):
-                            r = p["r"]+1
-                            c = p["c"]-1
-                        if(action == Action.SouthEast):
-                            r = p["r"]+1
-                            c = p["c"]+1 """
 
-                        if(r >= 0 and r < engineconfig["MapRadius"]*2 and c >= 0 and c < engineconfig["MapRadius"]*2):
-                            p["r"] = r
-                            p["c"] = c
+            if(p["isAlive"]):
+                if(action == Action.North):
+                    r = p["r"]-1
+                    c = p["c"]
+                if(action == Action.South):
+                    r = p["r"]+1
+                    c = p["c"]
+                if(action == Action.East):
+                    r = p["r"]
+                    c = p["c"]+1
+                if(action == Action.West):
+                    r = p["r"]
+                    c = p["c"]-1
+                """ if(action == Action.NorthEast):
+                    r = p["r"]-1
+                    c = p["c"]+1
+                if(action == Action.NorthWest):
+                    r = p["r"]-1
+                    c = p["c"]-1
+                if(action == Action.SouthWest):
+                    r = p["r"]+1
+                    c = p["c"]-1
+                if(action == Action.SouthEast):
+                    r = p["r"]+1
+                    c = p["c"]+1 """
+
+                if(r >= 0 and r < engineconfig["MapRadius"]*2 and c >= 0 and c < engineconfig["MapRadius"]*2):
+                    p["r"] = r
+                    p["c"] = c
 
     def gameOver(self) -> bool:
-        for p in self._players:
-            if(not p["isAlive"]):
-                return True
+        if(self._playerA["isAlive"] == False):
+            return True
+        if(self._playerB["isAlive"] == False):
+            return True
         if self._size < 0:
             return True
         return False
@@ -259,10 +327,10 @@ class Environment:
         self._leaderboard = engine.Surface(
             (engineconfig["LeaderboardSize"], self._size), engine.SRCALPHA)
         self._leaderboard.fill((255, 255, 255))
-        self._agentR = ReferenceAgent(self, "Finalizer")
-        self._agentQ = Agent(0.9, 0.9, 0.9, self, "Millennium Falcon")
+        self._agentR = ReferenceAgent(self)
+        self._agentQ = Agent(0.9, 0.9, 0.9, self)
 
-    def draw(self):
+    def draw(self, Episode: int):
         self._window.blit(self._bgimage, (0, 0))
         self._window.blit(self._leaderboard, (self._size, 0))
         self._window.blit(big_font.render("Leaderboard", 0, (0, 0, 0)),
@@ -282,17 +350,25 @@ class Environment:
                 if self._game._map[r][c] == engineconfig["BoostPad"]["Reward"]:
                     self._window.blit(
                         self._boostpad, (c*self._gridsize, r*self._gridsize))
-        intPLoc = 1
-        for p in self._game._players:
-            self._window.blit(engine.transform.scale(engine.image.load(
-                p["Path"]), (self._gridsize+5, self._gridsize+5)), (self._size+20, 32+30*intPLoc))
-            self._window.blit(font.render(
-                p["Name"] + ": "+str(p["Score"]), 1, (0, 0, 0)), (self._size+50, 30+30*intPLoc))
-            if(p["isAlive"]):
-                self._window.blit(
-                    engine.transform.scale(engine.image.load(p["Path"]), (self._gridsize, self._gridsize)), (p["c"]*self._gridsize, p["r"]*self._gridsize))
-            intPLoc += 1
 
+        self._window.blit(engine.transform.scale(engine.image.load(
+            self._game._playerA["Path"]), (self._gridsize+5, self._gridsize+5)), (self._size+20, 32+30))
+        self._window.blit(font.render(
+            self._game._playerA["Name"] + ": "+str(self._game._playerA["Score"]), 1, (0, 0, 0)), (self._size+50, 30+30))
+        if(self._game._playerA["isAlive"]):
+            self._window.blit(
+                engine.transform.scale(engine.image.load(self._game._playerA["Path"]), (self._gridsize, self._gridsize)), (self._game._playerA["c"]*self._gridsize, self._game._playerA["r"]*self._gridsize))
+
+        self._window.blit(engine.transform.scale(engine.image.load(
+            self._game._playerB["Path"]), (self._gridsize+5, self._gridsize+5)), (self._size+20, 32+30*2))
+        self._window.blit(font.render(
+            self._game._playerB["Name"] + ": "+str(self._game._playerB["Score"]), 1, (0, 0, 0)), (self._size+50, 30+30*2))
+        if(self._game._playerB["isAlive"]):
+            self._window.blit(
+                engine.transform.scale(engine.image.load(self._game._playerB["Path"]), (self._gridsize, self._gridsize)), (self._game._playerB["c"]*self._gridsize, self._game._playerB["r"]*self._gridsize))
+
+        self._window.blit(font.render("Episode: "+str(Episode),
+                          1, (0, 0, 0)), (self._size+50, self._size - 100))
         # Update the display using flip
         engine.display.flip()
 
@@ -300,65 +376,61 @@ class Environment:
         time_interval = engineconfig["Tick"]
         object_time = 0
         clock = engine.time.Clock()
-        # game loop
-        while self._running:
-            clock.tick(engineconfig["FPS"])
-            current_time = engine.time.get_ticks()
-            if current_time > object_time:
-                object_time += time_interval
-                if(((object_time/engineconfig["Zone"]["Tick"]).is_integer())):
-                    self._game.updateZone()
-                self._agentQ.train()
-                self._agentR.act()
-                self._game.update()
+        for e in range(self._episodes):
+            self._game.reset()
 
-            # for loop through the event queue
-            for event in engine.event.get():
-                # Check for QUIT event
-                if event.type == engine.QUIT:
-                    self._running = False
-            self.draw()
-            """ if self._game.gameOver():
-                self._continue = False
-                engine.quit() """
+            while self._running and not self._game.gameOver():
+                clock.tick(engineconfig["FPS"])
+                current_time = engine.time.get_ticks()
+                if current_time > object_time:
+                    object_time += time_interval
+                    if(((object_time/engineconfig["Zone"]["Tick"]).is_integer())):
+                        self._game.updateZone()
+                    self._agentQ.train()
+                    self._agentR.act()
+                    self._game.update()
+
+                # for loop through the event queue
+                for event in engine.event.get():
+                    # Check for QUIT event
+                    if event.type == engine.QUIT:
+                        self._running = False
+                self.draw(e+1)
+                """ if self._game.gameOver():
+                        self._continue = False
+                        engine.quit() """
 
 
 class ReferenceAgent:
-    def __init__(self, env: Environment, pName: str):
+    def __init__(self, env: Environment):
         self._env = env
-        for p in self._env._game._players:
-            if(p["Name"] == pName):
-                self._pName = p
 
     def act(self) -> None:
-        a: List[Action] = self._env._game.getMoves(self._pName["Name"])
-        if(self._env._game._map[self._pName["r"]+2][self._pName["c"]] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._pName["r"]+2][self._pName["c"]] == engineconfig["Meteor"]["Reward"]):
+        a: List[Action] = self._env._game.getMoves(self._env._game._playerB)
+        if(self._env._game._map[self._env._game._playerB["r"]+2][self._env._game._playerB["c"]] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._env._game._playerB["r"]+2][self._env._game._playerB["c"]] == engineconfig["Meteor"]["Reward"]):
             a.remove(Action.South)
-        if(self._env._game._map[self._pName["r"]-2][self._pName["c"]] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._pName["r"]-2][self._pName["c"]] == engineconfig["Meteor"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerB["r"]-2][self._env._game._playerB["c"]] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._env._game._playerB["r"]-2][self._env._game._playerB["c"]] == engineconfig["Meteor"]["Reward"]):
             a.remove(Action.North)
-        if(self._env._game._map[self._pName["r"]][self._pName["c"]+2] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._pName["r"]][self._pName["c"]+2] == engineconfig["Meteor"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerB["r"]][self._env._game._playerB["c"]+2] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._env._game._playerB["r"]][self._env._game._playerB["c"]+2] == engineconfig["Meteor"]["Reward"]):
             a.remove(Action.East)
-        if(self._env._game._map[self._pName["r"]][self._pName["c"]-2] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._pName["r"]][self._pName["c"]-2] == engineconfig["Meteor"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerB["r"]][self._env._game._playerB["c"]-2] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._env._game._playerB["r"]][self._env._game._playerB["c"]-2] == engineconfig["Meteor"]["Reward"]):
             a.remove(Action.West)
-        print(f"{self._pName}: actions {a}")
+        # print(f"{self._pName}: actions {a}")
         if(len(a) > 0):
-            self._env._game.move("Finalizer", random.choice(a))
+            self._env._game.move(self._env._game._playerB, random.choice(a))
 
 
 class Agent:
-    def __init__(self, epsilon: float, gamma: float, alpha: float, env: Environment, pName: str):
+    def __init__(self, epsilon: float, gamma: float, alpha: float, env: Environment):
         self._epsilon = epsilon
         self._gamma = gamma
         self._alpha = alpha
         self._env = env
-        for p in self._env._game._players:
-            if p["Name"] == pName:
-                self._player = p
         self._actions = [Action.North, Action.South, Action.East, Action.West]
         self._qtable = QTable(self._actions)
 
     def act(self, a: Action) -> None:
-        self._env._game.move(self._player["Name"], a)
+        self._env._game.move(self._env._game._playerA, a)
 
     def sense(self):
         return self._qtable._map[self.getState()[0]][self.getState()[1]]
@@ -367,59 +439,60 @@ class Agent:
         qs = self.sense()
         if random.random() < self._epsilon:
             abest, _ = self._qtable.getBestQ(
-                (self._player["r"], self._player["c"]))
+                (self.getState()[0], self.getState()[1]))
             return abest
         else:
             return random.choice(list(qs.keys()))
 
     def train(self):
-
         locStart = self.getState()
-        print(locStart)
-        print(
-            f"In {self._player} - Q: {self._qtable._map[locStart[0]][locStart[1]]}")
+        # print(locStart)
+        # print(f"In {self._env._game._playerA} - Q: {self._qtable._map[locStart[0]][locStart[1]]}")
         a = self.choose()
-        print(f"Selection action: {a}")
+        # print(f"Selection action: {a}")
         qStart = self._qtable[locStart][a]
-        print(f"Quality of action: {qStart}")
+        # print(f"Quality of action: {qStart}")
         self.act(a)
-        reward = self._env._game._map[self._player["r"]][self._player["c"]]
-        print(f"Immediate reward for action: {reward}")
-        print(f"Now in {self._player} - Q: {self._qtable[locStart]}")
+        reward = self._env._game._map[self._env._game._playerA["r"]
+                                      ][self._env._game._playerA["c"]]
+        # print(f"Immediate reward for action: {reward}")
+        # print(f"Now in {self._env._game._playerA} - Q: {self._qtable[locStart]}")
 
         _, qBest = self._qtable.getBestQ(
-            (self._player["r"], self._player["c"]))
-        print(f"Best quality is {qBest}")
+            (self.getState()[0], self.getState()[1]))
+        # print(f"Best quality is {qBest}")
         td = reward + (self._gamma * qBest) - qStart
-        print(f"Temporal Difference: {td}")
+        # print(f"Temporal Difference: {td}")
 
         qNew = qStart + td * self._alpha
         self._qtable[locStart][a] = qNew
-        print(f"Updating qvalue @{locStart} for {a} to {qNew}\n\n")
+        # print(f"Updating qvalue @{locStart} for {a} to {qNew}\n\n")
 
     def getState(self) -> Tuple[int, int]:
         drad = [0, 0, 0, 0]
         rad = [0, 0, 0, 0, 0, 0, 0, 0]
-        if(self._env._game._map[self._player["r"]-1][self._player["c"]] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]-1][self._env._game._playerA["c"]] == engineconfig["Food"]["Reward"]):
             rad[0] = 1
-        if(self._env._game._map[self._player["r"]+1][self._player["c"]] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]+1][self._env._game._playerA["c"]] == engineconfig["Food"]["Reward"]):
             rad[1] = 1
-        if(self._env._game._map[self._player["r"]][self._player["c"]+1] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]+1] == engineconfig["Food"]["Reward"]):
             rad[2] = 1
-        if(self._env._game._map[self._player["r"]][self._player["c"]-1] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]-1] == engineconfig["Food"]["Reward"]):
             rad[3] = 1
-        if(self._env._game._map[self._player["r"]-1][self._player["c"]+1] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]-1][self._env._game._playerA["c"]+1] == engineconfig["Food"]["Reward"]):
             rad[4] = 1
-        if(self._env._game._map[self._player["r"]-1][self._player["c"]-1] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]-1][self._env._game._playerA["c"]-1] == engineconfig["Food"]["Reward"]):
             rad[5] = 1
-        if(self._env._game._map[self._player["r"]+1][self._player["c"]+1] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]+1][self._env._game._playerA["c"]+1] == engineconfig["Food"]["Reward"]):
             rad[6] = 1
-        if(self._env._game._map[self._player["r"]+1][self._player["c"]-1] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]+1][self._env._game._playerA["c"]-1] == engineconfig["Food"]["Reward"]):
             rad[7] = 1
 
-        if(self._env._agentR._pName["Score"] < self._player["Score"]):
-            oppR = self._player["r"] - self._env._agentR._pName["r"]
-            oppC = self._player["c"] - self._env._agentR._pName["c"]
+        if(self._env._game._playerB["Score"] < self._env._game._playerA["Score"]):
+            oppR = self._env._game._playerA["r"] - \
+                self._env._game._playerB["r"]
+            oppC = self._env._game._playerA["c"] - \
+                self._env._game._playerB["c"]
 
             if (oppR < 0 and oppC < 0):
                 rad[0] = 2
@@ -441,23 +514,23 @@ class Agent:
         row = rad[0] + (3 * rad[1]) + (9 * rad[2]) + (27 * rad[3]) + \
             (81 * rad[4]) + (243 * rad[5]) + (729 * rad[6]) + (2187 * rad[7])
 
-        if(self._env._game._map[self._player["r"]-1][self._player["c"]] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._player["r"]-1][self._player["c"]] == engineconfig["Meteor"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]-1][self._env._game._playerA["c"]] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]-1][self._env._game._playerA["c"]] == engineconfig["Meteor"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]-2][self._env._game._playerA["c"]] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]-2][self._env._game._playerA["c"]] == engineconfig["Meteor"]["Reward"]):
             drad[0] = 1
-        if(self._env._game._map[self._player["r"]+1][self._player["c"]] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._player["r"]+1][self._player["c"]] == engineconfig["Meteor"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]+1][self._env._game._playerA["c"]] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]+1][self._env._game._playerA["c"]] == engineconfig["Meteor"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]+2][self._env._game._playerA["c"]] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]+2][self._env._game._playerA["c"]] == engineconfig["Meteor"]["Reward"]):
             drad[1] = 1
-        if(self._env._game._map[self._player["r"]][self._player["c"]+1] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._player["r"]][self._player["c"]+1] == engineconfig["Meteor"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]+1] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]+1] == engineconfig["Meteor"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]+2] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]+2] == engineconfig["Meteor"]["Reward"]):
             drad[2] = 1
-        if(self._env._game._map[self._player["r"]][self._player["c"]-1] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._player["r"]][self._player["c"]-1] == engineconfig["Meteor"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]-1] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]-1] == engineconfig["Meteor"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]-2] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]-2] == engineconfig["Meteor"]["Reward"]):
             drad[3] = 1
 
-        if(self._env._agentR._pName["Score"] > self._player["Score"]):
-            if(self._player["r"]-1 == self._env._agentR._pName["r"] and self._player["c"] == self._env._agentR._pName["c"]):
+        if(self._env._game._playerB["Score"] > self._env._game._playerA["Score"]):
+            if(self._env._game._playerA["r"]-1 == self._env._game._playerB["r"] and self._env._game._playerA["c"] == self._env._game._playerB["c"]):
                 drad[0] = 1
-            if(self._player["r"]+1 == self._env._agentR._pName["r"] and self._player["c"] == self._env._agentR._pName["c"]):
+            if(self._env._game._playerA["r"]+1 == self._env._game._playerB["r"] and self._env._game._playerA["c"] == self._env._game._playerB["c"]):
                 drad[1] = 1
-            if(self._player["r"] == self._env._agentR._pName["r"] and self._player["c"]+1 == self._env._agentR._pName["c"]):
+            if(self._env._game._playerA["r"] == self._env._game._playerB["r"] and self._env._game._playerA["c"]+1 == self._env._game._playerB["c"]):
                 drad[2] = 1
-            if(self._player["r"] == self._env._agentR._pName["r"] and self._player["c"]-1 == self._env._agentR._pName["c"]):
+            if(self._env._game._playerA["r"] == self._env._game._playerB["r"] and self._env._game._playerA["c"]-1 == self._env._game._playerB["c"]):
                 drad[3] = 1
 
         col = drad[0] + (2*drad[1]) + (4*drad[2])+(8*drad[3])

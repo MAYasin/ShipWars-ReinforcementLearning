@@ -13,25 +13,11 @@
         {
             "Name": "Millennium Falcon",
             "Path": "assets/players/ufoBlue.png",
-            "Active": true,
             "Size": 6
         },
         {
             "Name": "Finalizer",
             "Path": "assets/players/ufoGreen.png",
-            "Active": true,
-            "Size": 5
-        },
-        {
-            "Name": "Devastator",
-            "Path": "assets/players/ufoRed.png",
-            "Active": false,
-            "Size": 5
-        },
-        {
-            "Name": "TIE fighter",
-            "Path": "assets/players/ufoYellow.png",
-            "Active": false,
             "Size": 5
         }
     ],
