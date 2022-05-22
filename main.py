@@ -35,14 +35,22 @@ class Action(enum.Enum):
 
 class QTable():
     def __init__(self, lstActions: List[Action]):
-        self._map = [[] for _ in range(2 ^ 4)]
+        self._map = [[] for _ in range(16)]
 
-        for r in range(2 ^ 4):
-            for _ in range(3 ^ 8):
+        for r in range(16):
+            for _ in range(6561):
                 dictQ = {}
                 for a in lstActions:
                     dictQ[a] = 0.0
                 self._map[r].append(dictQ)
+
+    def __getitem__(self, tplCoord: Tuple[int, int]) -> float:
+        r, c = tplCoord
+        return self._map[r][c]
+
+    def __setitem__(self, tplCoord: Tuple[int, int], value) -> None:
+        r, c = tplCoord
+        self._map[r][c] = value
 
     def getBestQ(self, tplCoord: Tuple[int, int]) -> Tuple[Action, float]:
         qs = self[tplCoord]
@@ -219,6 +227,9 @@ class World:
                             p["c"] = c
 
     def gameOver(self) -> bool:
+        for p in self._players:
+            if(not p["isAlive"]):
+                return True
         if self._size < 0:
             return True
         return False
@@ -297,7 +308,7 @@ class Environment:
                 object_time += time_interval
                 if(((object_time/engineconfig["Zone"]["Tick"]).is_integer())):
                     self._game.updateZone()
-                # self._agentQ.act()
+                self._agentQ.train()
                 self._agentR.act()
                 self._game.update()
 
@@ -346,12 +357,45 @@ class Agent:
         self._actions = [Action.North, Action.South, Action.East, Action.West]
         self._qtable = QTable(self._actions)
 
-    def act(self) -> None:
-        a = self._qtable.getBestQ(self.location)[0]
+    def act(self, a: Action) -> None:
         self._env._game.move(self._player["Name"], a)
 
+    def sense(self):
+        return self._qtable._map[self.getState()[0]][self.getState()[1]]
+
+    def choose(self) -> Action:
+        qs = self.sense()
+        if random.random() < self._epsilon:
+            abest, _ = self._qtable.getBestQ(
+                (self._player["r"], self._player["c"]))
+            return abest
+        else:
+            return random.choice(list(qs.keys()))
+
     def train(self):
-        p = 1
+
+        locStart = self.getState()
+        print(locStart)
+        print(
+            f"In {self._player} - Q: {self._qtable._map[locStart[0]][locStart[1]]}")
+        a = self.choose()
+        print(f"Selection action: {a}")
+        qStart = self._qtable[locStart][a]
+        print(f"Quality of action: {qStart}")
+        self.act(a)
+        reward = self._env._game._map[self._player["r"]][self._player["c"]]
+        print(f"Immediate reward for action: {reward}")
+        print(f"Now in {self._player} - Q: {self._qtable[locStart]}")
+
+        _, qBest = self._qtable.getBestQ(
+            (self._player["r"], self._player["c"]))
+        print(f"Best quality is {qBest}")
+        td = reward + (self._gamma * qBest) - qStart
+        print(f"Temporal Difference: {td}")
+
+        qNew = qStart + td * self._alpha
+        self._qtable[locStart][a] = qNew
+        print(f"Updating qvalue @{locStart} for {a} to {qNew}\n\n")
 
     def getState(self) -> Tuple[int, int]:
         drad = [0, 0, 0, 0]
@@ -373,7 +417,7 @@ class Agent:
         if(self._env._game._map[self._player["r"]+1][self._player["c"]-1] == engineconfig["Food"]["Reward"]):
             rad[7] = 1
 
-        if(self._env._agentR._player["Score"] < self._player["Score"]):
+        if(self._env._agentR._pName["Score"] < self._player["Score"]):
             oppR = self._player["r"] - self._env._agentR._pName["r"]
             oppC = self._player["c"] - self._env._agentR._pName["c"]
 
@@ -406,14 +450,14 @@ class Agent:
         if(self._env._game._map[self._player["r"]][self._player["c"]-1] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._player["r"]][self._player["c"]-1] == engineconfig["Meteor"]["Reward"]):
             drad[3] = 1
 
-        if(self._env._agentR._player["Score"] > self._player["Score"]):
-            if(self._player["r"]-1 == self._env._agentR._player["r"] and self._player["c"] == self._env._agentR._player["c"]):
+        if(self._env._agentR._pName["Score"] > self._player["Score"]):
+            if(self._player["r"]-1 == self._env._agentR._pName["r"] and self._player["c"] == self._env._agentR._pName["c"]):
                 drad[0] = 1
-            if(self._player["r"]+1 == self._env._agentR._player["r"] and self._player["c"] == self._env._agentR._player["c"]):
+            if(self._player["r"]+1 == self._env._agentR._pName["r"] and self._player["c"] == self._env._agentR._pName["c"]):
                 drad[1] = 1
-            if(self._player["r"] == self._env._agentR._player["r"] and self._player["c"]+1 == self._env._agentR._player["c"]):
+            if(self._player["r"] == self._env._agentR._pName["r"] and self._player["c"]+1 == self._env._agentR._pName["c"]):
                 drad[2] = 1
-            if(self._player["r"] == self._env._agentR._player["r"] and self._player["c"]-1 == self._env._agentR._player["c"]):
+            if(self._player["r"] == self._env._agentR._pName["r"] and self._player["c"]-1 == self._env._agentR._pName["c"]):
                 drad[3] = 1
 
         col = drad[0] + (2*drad[1]) + (4*drad[2])+(8*drad[3])
