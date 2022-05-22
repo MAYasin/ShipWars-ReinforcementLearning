@@ -353,49 +353,72 @@ class Agent:
     def train(self):
         p = 1
 
-    def getState(self) -> Tuple[int, Action]:
+    def getState(self) -> Tuple[int, int]:
+        drad = [0, 0, 0, 0]
         rad = [0, 0, 0, 0, 0, 0, 0, 0]
-        if(self._env._game._map[self._pName["r"]-1][self._pName["c"]] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._player["r"]-1][self._player["c"]] == engineconfig["Food"]["Reward"]):
             rad[0] = 1
-        if(self._env._game._map[self._pName["r"]+1][self._pName["c"]] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._player["r"]+1][self._player["c"]] == engineconfig["Food"]["Reward"]):
             rad[1] = 1
-        if(self._env._game._map[self._pName["r"]][self._pName["c"]+1] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._player["r"]][self._player["c"]+1] == engineconfig["Food"]["Reward"]):
             rad[2] = 1
-        if(self._env._game._map[self._pName["r"]][self._pName["c"]-1] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._player["r"]][self._player["c"]-1] == engineconfig["Food"]["Reward"]):
             rad[3] = 1
-        if(self._env._game._map[self._pName["r"]-1][self._pName["c"]+1] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._player["r"]-1][self._player["c"]+1] == engineconfig["Food"]["Reward"]):
             rad[4] = 1
-        if(self._env._game._map[self._pName["r"]-1][self._pName["c"]-1] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._player["r"]-1][self._player["c"]-1] == engineconfig["Food"]["Reward"]):
             rad[5] = 1
-        if(self._env._game._map[self._pName["r"]+1][self._pName["c"]+1] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._player["r"]+1][self._player["c"]+1] == engineconfig["Food"]["Reward"]):
             rad[6] = 1
-        if(self._env._game._map[self._pName["r"]+1][self._pName["c"]-1] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._player["r"]+1][self._player["c"]-1] == engineconfig["Food"]["Reward"]):
             rad[7] = 1
 
-        oppR = self._player["r"] - self._env._agentR._pName["r"]
-        oppC = self._player["c"] - self._env._agentR._pName["c"]
+        if(self._env._agentR._player["Score"] < self._player["Score"]):
+            oppR = self._player["r"] - self._env._agentR._pName["r"]
+            oppC = self._player["c"] - self._env._agentR._pName["c"]
 
-        if (oppR < 0 and oppC < 0):
-            rad[0] = 2
-        elif (oppR == 0 and oppC < 0):
-            rad[1] = 2
-        elif (oppR > 0 and oppC < 0):
-            rad[2] = 2
-        elif (oppR > 0 and oppC == 0):
-            rad[3] = 2
-        elif (oppR > 0 and oppC > 0):
-            rad[4] = 2
-        elif (oppR == 0 and oppC > 0):
-            rad[5] = 2
-        elif (oppR < 0 and oppC > 0):
-            rad[6] = 2
-        elif (oppR < 0 and oppC == 0):
-            rad[7] = 2
+            if (oppR < 0 and oppC < 0):
+                rad[0] = 2
+            elif (oppR == 0 and oppC < 0):
+                rad[1] = 2
+            elif (oppR > 0 and oppC < 0):
+                rad[2] = 2
+            elif (oppR > 0 and oppC == 0):
+                rad[3] = 2
+            elif (oppR > 0 and oppC > 0):
+                rad[4] = 2
+            elif (oppR == 0 and oppC > 0):
+                rad[5] = 2
+            elif (oppR < 0 and oppC > 0):
+                rad[6] = 2
+            elif (oppR < 0 and oppC == 0):
+                rad[7] = 2
 
         row = rad[0] + (3 * rad[1]) + (9 * rad[2]) + (27 * rad[3]) + \
             (81 * rad[4]) + (243 * rad[5]) + (729 * rad[6]) + (2187 * rad[7])
 
-        return (row)
+        if(self._env._game._map[self._player["r"]-1][self._player["c"]] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._player["r"]-1][self._player["c"]] == engineconfig["Meteor"]["Reward"]):
+            drad[0] = 1
+        if(self._env._game._map[self._player["r"]+1][self._player["c"]] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._player["r"]+1][self._player["c"]] == engineconfig["Meteor"]["Reward"]):
+            drad[1] = 1
+        if(self._env._game._map[self._player["r"]][self._player["c"]+1] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._player["r"]][self._player["c"]+1] == engineconfig["Meteor"]["Reward"]):
+            drad[2] = 1
+        if(self._env._game._map[self._player["r"]][self._player["c"]-1] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._player["r"]][self._player["c"]-1] == engineconfig["Meteor"]["Reward"]):
+            drad[3] = 1
+
+        if(self._env._agentR._player["Score"] > self._player["Score"]):
+            if(self._player["r"]-1 == self._env._agentR._player["r"] and self._player["c"] == self._env._agentR._player["c"]):
+                drad[0] = 1
+            if(self._player["r"]+1 == self._env._agentR._player["r"] and self._player["c"] == self._env._agentR._player["c"]):
+                drad[1] = 1
+            if(self._player["r"] == self._env._agentR._player["r"] and self._player["c"]+1 == self._env._agentR._player["c"]):
+                drad[2] = 1
+            if(self._player["r"] == self._env._agentR._player["r"] and self._player["c"]-1 == self._env._agentR._player["c"]):
+                drad[3] = 1
+
+        col = drad[0] + (2*drad[1]) + (4*drad[2])+(8*drad[3])
+
+        return (row, col)
 
 
 if __name__ == "__main__":
