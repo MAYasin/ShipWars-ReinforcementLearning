@@ -30,7 +30,7 @@
     "Food": {
         "Seed": 10,
         "Reward": 10,
-        "Probability": 3,
+        "Probability": 6,
         "Path": "assets/food.png"
     },
     "BoostPad": {
