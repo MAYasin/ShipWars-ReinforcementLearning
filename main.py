@@ -1,8 +1,9 @@
 import enum
 import random
+import time
 from tkinter import ACTIVE
 from typing import List, Tuple
-from matplotlib import blocking_input
+from matplotlib import pyplot
 import pygame as engine
 import json
 import math
@@ -195,7 +196,7 @@ class World:
 
         if(self._playerA["r"] == self._playerB["r"] and self._playerA["c"] == self._playerB["c"]):
             if(self._playerA["Score"] > self._playerB["Score"]):
-                self._playerB["isALive"] = False
+                self._playerB["isAlive"] = False
                 self._playerB["Score"] -= engineconfig["PlayerReward"]
             elif (self._playerA["Score"] < self._playerB["Score"]):
                 self._playerA["isAlive"] = False
@@ -325,7 +326,7 @@ class Environment:
             (engineconfig["LeaderboardSize"], self._size), engine.SRCALPHA)
         self._leaderboard.fill((255, 255, 255))
         self._agentR = ReferenceAgent(self)
-        self._agentQ = Agent(0.9, 0.9, 0.9, self)
+        self._agentQ = Agent(0.7, 0.9, 0.9, self)
 
     def draw(self, epoch: int, pA: int, pB: int):
         self._window.blit(self._bgimage, (0, 0))
@@ -404,8 +405,9 @@ class Environment:
                     object_time += time_interval
                     if(((object_time/engineconfig["Zone"]["Tick"]).is_integer())):
                         self._game.updateZone()
-                    self._agentQ.train()
+
                     self._agentR.act()
+                    self._agentQ.train()
                     self._game.update()
 
                     if(self._game._playerA["isAlive"] == False or self._game._playerB["isAlive"] == False):
@@ -431,6 +433,21 @@ class Environment:
                 """ if self._game.gameOver():
                         self._continue = False
                         engine.quit() """
+
+        XAxis = list(range(self._epochs))
+        pyplot.title("Learning Result")
+        pyplot.ylabel("Result")
+        pyplot.xlabel("Epochs")
+        pyplot.plot(XAxis, playerA, 'b--', XAxis,
+                    playerB, 'g--')
+        pyplot.show()
+
+        XAxis = list(range(self._epochs))
+        pyplot.title(self._game._playerA["Name"])
+        pyplot.ylabel("Result")
+        pyplot.xlabel("Epochs")
+        pyplot.plot(XAxis, playerA, 'b--')
+        pyplot.show()
 
 
 class ReferenceAgent:
@@ -464,19 +481,20 @@ class Agent:
     def act(self, a: Action) -> None:
         self._env._game.move(self._env._game._playerA, a)
 
-    def choose(self) -> Action:
+    def choose(self, loc: Tuple[int, int]) -> Action:
         QLoc = self._qtable._map[self.getState()[0]][self.getState()[1]]
         if random.random() < self._epsilon:
-            BestAction, _ = self._qtable.BestQValue(
-                (self.getState()[0], self.getState()[1]))
+            BestAction, _ = self._qtable.BestQValue(loc)
             return BestAction
         else:
             return random.choice(list(QLoc.keys()))
 
     def train(self):
+        t = 1000 * time.time()  # current time in milliseconds
+        random.seed(int(t) % 2**32)
         locStart = self.getState()
         print(f"QVal: {self._qtable._map[locStart[0]][locStart[1]]}")
-        action = self.choose()
+        action = self.choose(locStart)
         qStart = self._qtable[locStart][action]
         print(f"The Action: {action} Action Value: {qStart}")
         self.act(action)
@@ -486,8 +504,7 @@ class Agent:
             reward = engineconfig["PlayerReward"]
         print(f"Reward for Action: {reward}")
 
-        _, BestQVal = self._qtable.BestQValue(
-            (self.getState()[0], self.getState()[1]))
+        _, BestQVal = self._qtable.BestQValue(self.getState())
         print(f"Best QVal: {BestQVal}")
         tempdiff = reward + (self._gamma * BestQVal) - qStart
         print(f"Temporal Difference: {tempdiff}")
@@ -499,21 +516,21 @@ class Agent:
     def getState(self) -> Tuple[int, int]:
         drad = [0, 0, 0, 0]
         rad = [0, 0, 0, 0, 0, 0, 0, 0]
-        if(self._env._game._map[self._env._game._playerA["r"]-1][self._env._game._playerA["c"]] == engineconfig["Food"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]-2][self._env._game._playerA["c"]] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]-1][self._env._game._playerA["c"]] == engineconfig["Food"]["Reward"]):
             rad[0] = 1
-        if(self._env._game._map[self._env._game._playerA["r"]+1][self._env._game._playerA["c"]] == engineconfig["Food"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]+2][self._env._game._playerA["c"]] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]+1][self._env._game._playerA["c"]] == engineconfig["Food"]["Reward"]):
             rad[1] = 1
-        if(self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]+1] == engineconfig["Food"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]+2] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]+1] == engineconfig["Food"]["Reward"]):
             rad[2] = 1
-        if(self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]-1] == engineconfig["Food"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]-2] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]-1] == engineconfig["Food"]["Reward"]):
             rad[3] = 1
-        if(self._env._game._map[self._env._game._playerA["r"]-1][self._env._game._playerA["c"]+1] == engineconfig["Food"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]-2][self._env._game._playerA["c"]+2] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]-1][self._env._game._playerA["c"]+1] == engineconfig["Food"]["Reward"]):
             rad[4] = 1
-        if(self._env._game._map[self._env._game._playerA["r"]-1][self._env._game._playerA["c"]-1] == engineconfig["Food"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]-2][self._env._game._playerA["c"]-2] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]-1][self._env._game._playerA["c"]-1] == engineconfig["Food"]["Reward"]):
             rad[5] = 1
-        if(self._env._game._map[self._env._game._playerA["r"]+1][self._env._game._playerA["c"]+1] == engineconfig["Food"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]+2][self._env._game._playerA["c"]+2] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]+1][self._env._game._playerA["c"]+1] == engineconfig["Food"]["Reward"]):
             rad[6] = 1
-        if(self._env._game._map[self._env._game._playerA["r"]+1][self._env._game._playerA["c"]-1] == engineconfig["Food"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]+2][self._env._game._playerA["c"]-2] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]+1][self._env._game._playerA["c"]-1] == engineconfig["Food"]["Reward"]):
             rad[7] = 1
 
         oppR = self._env._game._playerA["r"] - self._env._game._playerB["r"]
