@@ -1,8 +1,6 @@
 import enum
 import random
-import this
 from tkinter import ACTIVE
-from tokenize import String
 from typing import List, Tuple
 from matplotlib import blocking_input
 import pygame as engine
@@ -15,12 +13,6 @@ jsonfile.close()
 engine.init()
 font = engine.font.SysFont("arial", 20)
 big_font = engine.font.SysFont("arial", 30)
-
-
-def euclideanDistance(p1: Tuple[int, int], p2: Tuple[int, int]):
-    x1, y1 = p1
-    x2, y2 = p2
-    return math.sqrt((x1-x2)**2+(y1-y2)**2)
 
 
 class Action(enum.Enum):
@@ -45,24 +37,24 @@ class QTable():
                     dictQ[a] = 0.0
                 self._map[r].append(dictQ)
 
-    def __getitem__(self, tplCoord: Tuple[int, int]) -> float:
-        r, c = tplCoord
+    def __getitem__(self, QPos: Tuple[int, int]) -> float:
+        r, c = QPos
         return self._map[r][c]
 
-    def __setitem__(self, tplCoord: Tuple[int, int], value) -> None:
-        r, c = tplCoord
+    def __setitem__(self, QPos: Tuple[int, int], value) -> None:
+        r, c = QPos
         self._map[r][c] = value
 
-    def getBestQ(self, tplCoord: Tuple[int, int]) -> Tuple[Action, float]:
-        qs = self[tplCoord]
-        qbest = list(qs.values())[0]
-        abest = list(qs.keys())[0]
+    def BestQValue(self, QPos: Tuple[int, int]) -> Tuple[Action, float]:
+        qloc = self[QPos]
+        QVal = list(qloc.values())[0]
+        BestAction = list(qloc.keys())[0]
 
-        for a, q in qs.items():
-            if q > qbest:
-                qbest = q
-                abest = a
-        return (abest, qbest)
+        for a, q in qloc.items():
+            if q > QVal:
+                QVal = q
+                BestAction = a
+        return (BestAction, QVal)
 
 
 class World:
@@ -73,7 +65,7 @@ class World:
         random.seed(engineconfig["Food"]["Seed"])
         for r in range(engineconfig["MapRadius"]*2):
             for c in range(engineconfig["MapRadius"]*2):
-                if(euclideanDistance((engineconfig["MapRadius"], engineconfig["MapRadius"]), (r, c)) >= engineconfig["MapRadius"]):
+                if(self.euclideanDistance((engineconfig["MapRadius"], engineconfig["MapRadius"]), (r, c)) >= engineconfig["MapRadius"]):
                     self._map[r].append(engineconfig["Zone"]["Reward"])
                 else:
                     n = random.randint(0, engineconfig["Food"]["Probability"])
@@ -98,7 +90,7 @@ class World:
         random.seed(engineconfig["Meteor"]["Seed"])
         for r in range(engineconfig["MapRadius"]*2):
             for c in range(engineconfig["MapRadius"]*2):
-                if(not euclideanDistance((engineconfig["MapRadius"], engineconfig["MapRadius"]), (r, c)) >= engineconfig["MapRadius"]):
+                if(not self.euclideanDistance((engineconfig["MapRadius"], engineconfig["MapRadius"]), (r, c)) >= engineconfig["MapRadius"]):
                     n = random.randint(
                         0, engineconfig["Meteor"]["Probability"])
                     if(blnNext and n == engineconfig["Meteor"]["Probability"]):
@@ -133,7 +125,7 @@ class World:
         random.seed(engineconfig["Food"]["Seed"])
         for r in range(engineconfig["MapRadius"]*2):
             for c in range(engineconfig["MapRadius"]*2):
-                if(euclideanDistance((engineconfig["MapRadius"], engineconfig["MapRadius"]), (r, c)) >= engineconfig["MapRadius"]):
+                if(self.euclideanDistance((engineconfig["MapRadius"], engineconfig["MapRadius"]), (r, c)) >= engineconfig["MapRadius"]):
                     self._map[r][c] = engineconfig["Zone"]["Reward"]
                 else:
                     n = random.randint(0, engineconfig["Food"]["Probability"])
@@ -158,7 +150,7 @@ class World:
         random.seed(engineconfig["Meteor"]["Seed"])
         for r in range(engineconfig["MapRadius"]*2):
             for c in range(engineconfig["MapRadius"]*2):
-                if(not euclideanDistance((engineconfig["MapRadius"], engineconfig["MapRadius"]), (r, c)) >= engineconfig["MapRadius"]):
+                if(not self.euclideanDistance((engineconfig["MapRadius"], engineconfig["MapRadius"]), (r, c)) >= engineconfig["MapRadius"]):
                     n = random.randint(
                         0, engineconfig["Meteor"]["Probability"])
                     if(blnNext and n == engineconfig["Meteor"]["Probability"]):
@@ -188,7 +180,7 @@ class World:
         self._size -= 1
         for r in range(engineconfig["MapRadius"]*2):
             for c in range(engineconfig["MapRadius"]*2):
-                if(euclideanDistance((engineconfig["MapRadius"], engineconfig["MapRadius"]), (r, c)) >= self._size):
+                if(self.euclideanDistance((engineconfig["MapRadius"], engineconfig["MapRadius"]), (r, c)) >= self._size):
                     self._map[r][c] = engineconfig["Zone"]["Reward"]
 
     def update(self):
@@ -293,6 +285,11 @@ class World:
                     p["r"] = r
                     p["c"] = c
 
+    def euclideanDistance(self, p1: Tuple[int, int], p2: Tuple[int, int]):
+        x1, y1 = p1
+        x2, y2 = p2
+        return math.sqrt((x1-x2)**2+(y1-y2)**2)
+
     def gameOver(self) -> bool:
         if(self._playerA["isAlive"] == False):
             return True
@@ -304,8 +301,8 @@ class World:
 
 
 class Environment:
-    def __init__(self, episodes: int) -> None:
-        self._episodes = episodes
+    def __init__(self) -> None:
+        self._epochs = engineconfig["Epochs"]
         self._running = True
         self._gridsize = engineconfig["GridSize"]
         self._game = World()
@@ -330,7 +327,7 @@ class Environment:
         self._agentR = ReferenceAgent(self)
         self._agentQ = Agent(0.9, 0.9, 0.9, self)
 
-    def draw(self, Episode: int):
+    def draw(self, epoch: int):
         self._window.blit(self._bgimage, (0, 0))
         self._window.blit(self._leaderboard, (self._size, 0))
         self._window.blit(big_font.render("Leaderboard", 0, (0, 0, 0)),
@@ -367,16 +364,15 @@ class Environment:
             self._window.blit(
                 engine.transform.scale(engine.image.load(self._game._playerB["Path"]), (self._gridsize, self._gridsize)), (self._game._playerB["c"]*self._gridsize, self._game._playerB["r"]*self._gridsize))
 
-        self._window.blit(font.render("Episode: "+str(Episode),
+        self._window.blit(font.render("Epoch: "+str(epoch),
                           1, (0, 0, 0)), (self._size+50, self._size - 100))
-        # Update the display using flip
         engine.display.flip()
 
     def run(self):
         time_interval = engineconfig["Tick"]
         object_time = 0
         clock = engine.time.Clock()
-        for e in range(self._episodes):
+        for e in range(self._epochs):
             self._game.reset()
 
             while self._running and not self._game.gameOver():
@@ -432,41 +428,35 @@ class Agent:
     def act(self, a: Action) -> None:
         self._env._game.move(self._env._game._playerA, a)
 
-    def sense(self):
-        return self._qtable._map[self.getState()[0]][self.getState()[1]]
-
     def choose(self) -> Action:
-        qs = self.sense()
+        QLoc = self._qtable._map[self.getState()[0]][self.getState()[1]]
         if random.random() < self._epsilon:
-            abest, _ = self._qtable.getBestQ(
+            BestAction, _ = self._qtable.BestQValue(
                 (self.getState()[0], self.getState()[1]))
-            return abest
+            return BestAction
         else:
-            return random.choice(list(qs.keys()))
+            return random.choice(list(QLoc.keys()))
 
     def train(self):
         locStart = self.getState()
-        # print(locStart)
-        # print(f"In {self._env._game._playerA} - Q: {self._qtable._map[locStart[0]][locStart[1]]}")
-        a = self.choose()
-        # print(f"Selection action: {a}")
-        qStart = self._qtable[locStart][a]
-        # print(f"Quality of action: {qStart}")
-        self.act(a)
+        print(f"QVal: {self._qtable._map[locStart[0]][locStart[1]]}")
+        action = self.choose()
+        qStart = self._qtable[locStart][action]
+        print(f"The Action: {action} Action Value: {qStart}")
+        self.act(action)
         reward = self._env._game._map[self._env._game._playerA["r"]
                                       ][self._env._game._playerA["c"]]
-        # print(f"Immediate reward for action: {reward}")
-        # print(f"Now in {self._env._game._playerA} - Q: {self._qtable[locStart]}")
+        print(f"Reward for Action: {reward}")
 
-        _, qBest = self._qtable.getBestQ(
+        _, BestQVal = self._qtable.BestQValue(
             (self.getState()[0], self.getState()[1]))
-        # print(f"Best quality is {qBest}")
-        td = reward + (self._gamma * qBest) - qStart
-        # print(f"Temporal Difference: {td}")
-
-        qNew = qStart + td * self._alpha
-        self._qtable[locStart][a] = qNew
-        # print(f"Updating qvalue @{locStart} for {a} to {qNew}\n\n")
+        print(f"Best QVal: {BestQVal}")
+        tempdiff = reward + (self._gamma * BestQVal) - qStart
+        print(f"Temporal Difference: {tempdiff}")
+        NewQVal = qStart + tempdiff * self._alpha
+        self._qtable[locStart][action] = NewQVal
+        print(
+            f"Updated QVal {locStart} action: {action} newQval: {NewQVal}\n\n")
 
     def getState(self) -> Tuple[int, int]:
         drad = [0, 0, 0, 0]
@@ -539,5 +529,5 @@ class Agent:
 
 
 if __name__ == "__main__":
-    env = Environment(200)
+    env = Environment()
     env.run()

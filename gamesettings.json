@@ -1,10 +1,11 @@
 {
+    "Epochs": 100,
     "MapRadius": 25,
     "StartingPlayerSize": 10,
     "MinimumPlayerSize": 5,
     "Reward": 0,
     "GridSize": 15,
-    "Tick": 1000,
+    "Tick": 500,
     "FPS": 60,
     "LeaderboardSize": 280,
     "PlayerReward": 100,
@@ -23,7 +24,7 @@
     ],
     "Zone": {
         "Reward": -100,
-        "Tick": 4000,
+        "Tick": 2000,
         "Path": "assets/zone.png"
     },
     "Food": {
