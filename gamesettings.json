@@ -14,7 +14,7 @@
         {
             "Name": "Millennium Falcon",
             "Path": "assets/players/ufoBlue.png",
-            "Size": 6
+            "Size": 5
         },
         {
             "Name": "Finalizer",
@@ -23,13 +23,13 @@
         }
     ],
     "Zone": {
-        "Reward": -100,
+        "Reward": -20,
         "Tick": 2000,
         "Path": "assets/zone.png"
     },
     "Food": {
         "Seed": 10,
-        "Reward": 1,
+        "Reward": 10,
         "Probability": 6,
         "Path": "assets/food.png"
     },

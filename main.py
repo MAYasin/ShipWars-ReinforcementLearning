@@ -327,7 +327,7 @@ class Environment:
         self._agentR = ReferenceAgent(self)
         self._agentQ = Agent(0.9, 0.9, 0.9, self)
 
-    def draw(self, epoch: int):
+    def draw(self, epoch: int, pA: int, pB: int):
         self._window.blit(self._bgimage, (0, 0))
         self._window.blit(self._leaderboard, (self._size, 0))
         self._window.blit(big_font.render("Leaderboard", 0, (0, 0, 0)),
@@ -364,6 +364,26 @@ class Environment:
             self._window.blit(
                 engine.transform.scale(engine.image.load(self._game._playerB["Path"]), (self._gridsize, self._gridsize)), (self._game._playerB["c"]*self._gridsize, self._game._playerB["r"]*self._gridsize))
 
+        # total
+        self._window.blit(font.render("Total", 1, (0, 0, 0)),
+                          (self._size+20, 30+30*5))
+
+        self._window.blit(engine.transform.scale(engine.image.load(
+            self._game._playerA["Path"]), (self._gridsize+5, self._gridsize+5)), (self._size+20, 32+30*6))
+        self._window.blit(font.render(
+            self._game._playerA["Name"] + ": "+str(pA), 1, (0, 0, 0)), (self._size+50, 30+30*6))
+        if(self._game._playerA["isAlive"]):
+            self._window.blit(
+                engine.transform.scale(engine.image.load(self._game._playerA["Path"]), (self._gridsize, self._gridsize)), (self._game._playerA["c"]*self._gridsize, self._game._playerA["r"]*self._gridsize))
+
+        self._window.blit(engine.transform.scale(engine.image.load(
+            self._game._playerB["Path"]), (self._gridsize+5, self._gridsize+5)), (self._size+20, 32+30*7))
+        self._window.blit(font.render(
+            self._game._playerB["Name"] + ": "+str(pB), 1, (0, 0, 0)), (self._size+50, 30+30*7))
+        if(self._game._playerB["isAlive"]):
+            self._window.blit(
+                engine.transform.scale(engine.image.load(self._game._playerB["Path"]), (self._gridsize, self._gridsize)), (self._game._playerB["c"]*self._gridsize, self._game._playerB["r"]*self._gridsize))
+
         self._window.blit(font.render("Epoch: "+str(epoch),
                           1, (0, 0, 0)), (self._size+50, self._size - 100))
         engine.display.flip()
@@ -372,6 +392,8 @@ class Environment:
         time_interval = engineconfig["Tick"]
         object_time = 0
         clock = engine.time.Clock()
+        playerA = []
+        playerB = []
         for e in range(self._epochs):
             self._game.reset()
 
@@ -386,12 +408,26 @@ class Environment:
                     self._agentR.act()
                     self._game.update()
 
+                    if(self._game._playerA["isAlive"] == False or self._game._playerB["isAlive"] == False):
+                        print(f"pa score : {self._game._playerA['Score']}")
+                        playerA.append(self._game._playerA["Score"])
+                        playerB.append(self._game._playerB["Score"])
+
                 # for loop through the event queue
                 for event in engine.event.get():
                     # Check for QUIT event
                     if event.type == engine.QUIT:
                         self._running = False
-                self.draw(e+1)
+                if(not playerA):
+                    pA = 0
+                else:
+                    pA = sum(playerA)
+
+                if(not playerB):
+                    pB = 0
+                else:
+                    pB = sum(playerB)
+                self.draw(e+1, pA, pB)
                 """ if self._game.gameOver():
                         self._continue = False
                         engine.quit() """
@@ -446,6 +482,8 @@ class Agent:
         self.act(action)
         reward = self._env._game._map[self._env._game._playerA["r"]
                                       ][self._env._game._playerA["c"]]
+        if(self._env._game._playerA["r"] == self._env._game._playerB["r"] and self._env._game._playerA["c"] == self._env._game._playerA["c"]):
+            reward = engineconfig["PlayerReward"]
         print(f"Reward for Action: {reward}")
 
         _, BestQVal = self._qtable.BestQValue(
@@ -461,45 +499,42 @@ class Agent:
     def getState(self) -> Tuple[int, int]:
         drad = [0, 0, 0, 0]
         rad = [0, 0, 0, 0, 0, 0, 0, 0]
-        if(self._env._game._map[self._env._game._playerA["r"]-1][self._env._game._playerA["c"]] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]-1][self._env._game._playerA["c"]] == engineconfig["Food"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]-2][self._env._game._playerA["c"]] == engineconfig["Food"]["Reward"]):
             rad[0] = 1
-        if(self._env._game._map[self._env._game._playerA["r"]+1][self._env._game._playerA["c"]] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]+1][self._env._game._playerA["c"]] == engineconfig["Food"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]+2][self._env._game._playerA["c"]] == engineconfig["Food"]["Reward"]):
             rad[1] = 1
-        if(self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]+1] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]+1] == engineconfig["Food"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]+2] == engineconfig["Food"]["Reward"]):
             rad[2] = 1
-        if(self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]-1] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]-1] == engineconfig["Food"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]-2] == engineconfig["Food"]["Reward"]):
             rad[3] = 1
-        if(self._env._game._map[self._env._game._playerA["r"]-1][self._env._game._playerA["c"]+1] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]-1][self._env._game._playerA["c"]+1] == engineconfig["Food"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]-2][self._env._game._playerA["c"]+2] == engineconfig["Food"]["Reward"]):
             rad[4] = 1
-        if(self._env._game._map[self._env._game._playerA["r"]-1][self._env._game._playerA["c"]-1] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]-1][self._env._game._playerA["c"]-1] == engineconfig["Food"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]-2][self._env._game._playerA["c"]-2] == engineconfig["Food"]["Reward"]):
             rad[5] = 1
-        if(self._env._game._map[self._env._game._playerA["r"]+1][self._env._game._playerA["c"]+1] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]+1][self._env._game._playerA["c"]+1] == engineconfig["Food"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]+2][self._env._game._playerA["c"]+2] == engineconfig["Food"]["Reward"]):
             rad[6] = 1
-        if(self._env._game._map[self._env._game._playerA["r"]+1][self._env._game._playerA["c"]-1] == engineconfig["Food"]["Reward"]):
+        if(self._env._game._map[self._env._game._playerA["r"]+1][self._env._game._playerA["c"]-1] == engineconfig["Food"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]+2][self._env._game._playerA["c"]-2] == engineconfig["Food"]["Reward"]):
             rad[7] = 1
 
-        if(self._env._game._playerB["Score"] < self._env._game._playerA["Score"]):
-            oppR = self._env._game._playerA["r"] - \
-                self._env._game._playerB["r"]
-            oppC = self._env._game._playerA["c"] - \
-                self._env._game._playerB["c"]
+        oppR = self._env._game._playerA["r"] - self._env._game._playerB["r"]
+        oppC = self._env._game._playerA["c"] - self._env._game._playerB["c"]
 
-            if (oppR < 0 and oppC < 0):
-                rad[0] = 2
-            elif (oppR == 0 and oppC < 0):
-                rad[1] = 2
-            elif (oppR > 0 and oppC < 0):
-                rad[2] = 2
-            elif (oppR > 0 and oppC == 0):
-                rad[3] = 2
-            elif (oppR > 0 and oppC > 0):
-                rad[4] = 2
-            elif (oppR == 0 and oppC > 0):
-                rad[5] = 2
-            elif (oppR < 0 and oppC > 0):
-                rad[6] = 2
-            elif (oppR < 0 and oppC == 0):
-                rad[7] = 2
+        if (oppR < 0 and oppC < 0):
+            rad[0] = 2
+        elif (oppR == 0 and oppC < 0):
+            rad[1] = 2
+        elif (oppR > 0 and oppC < 0):
+            rad[2] = 2
+        elif (oppR > 0 and oppC == 0):
+            rad[3] = 2
+        elif (oppR > 0 and oppC > 0):
+            rad[4] = 2
+        elif (oppR == 0 and oppC > 0):
+            rad[5] = 2
+        elif (oppR < 0 and oppC > 0):
+            rad[6] = 2
+        elif (oppR < 0 and oppC == 0):
+            rad[7] = 2
 
         row = rad[0] + (3 * rad[1]) + (9 * rad[2]) + (27 * rad[3]) + \
             (81 * rad[4]) + (243 * rad[5]) + (729 * rad[6]) + (2187 * rad[7])
@@ -513,7 +548,7 @@ class Agent:
         if(self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]-1] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]-1] == engineconfig["Meteor"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]-2] == engineconfig["Zone"]["Reward"] or self._env._game._map[self._env._game._playerA["r"]][self._env._game._playerA["c"]-2] == engineconfig["Meteor"]["Reward"]):
             drad[3] = 1
 
-        if(self._env._game._playerB["Score"] > self._env._game._playerA["Score"]):
+        """ if(self._env._game._playerB["Score"] > self._env._game._playerA["Score"]):
             if(self._env._game._playerA["r"]-1 == self._env._game._playerB["r"] and self._env._game._playerA["c"] == self._env._game._playerB["c"]):
                 drad[0] = 1
             if(self._env._game._playerA["r"]+1 == self._env._game._playerB["r"] and self._env._game._playerA["c"] == self._env._game._playerB["c"]):
@@ -521,7 +556,7 @@ class Agent:
             if(self._env._game._playerA["r"] == self._env._game._playerB["r"] and self._env._game._playerA["c"]+1 == self._env._game._playerB["c"]):
                 drad[2] = 1
             if(self._env._game._playerA["r"] == self._env._game._playerB["r"] and self._env._game._playerA["c"]-1 == self._env._game._playerB["c"]):
-                drad[3] = 1
+                drad[3] = 1 """
 
         col = drad[0] + (2*drad[1]) + (4*drad[2])+(8*drad[3])
 
