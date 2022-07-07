@@ -326,7 +326,7 @@ class Environment:
             (engineconfig["LeaderboardSize"], self._size), engine.SRCALPHA)
         self._leaderboard.fill((255, 255, 255))
         self._agentR = ReferenceAgent(self)
-        self._agentQ = Agent(0.7, 0.9, 0.9, self)
+        self._agentQ = Agent(0.9, 0.9, 0.9, self)
 
     def draw(self, epoch: int, pA: int, pB: int):
         self._window.blit(self._bgimage, (0, 0))
