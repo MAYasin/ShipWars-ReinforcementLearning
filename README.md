@@ -32,4 +32,4 @@ An AI game
 - <https://opengameart.org/content/space-shooter-redux>
 
 ## Author
-Muhammad Aman Yasin - 219028474
+Muhammad Aman Yasin
